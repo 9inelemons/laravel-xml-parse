@@ -1,0 +1,54 @@
+version: "3.7"
+services:
+  app:
+    build:
+      context: ./docker-compose/php-fpm
+      dockerfile: Dockerfile
+    container_name: ${APP_NAME}-app
+    restart: unless-stopped
+    working_dir: /var/www/
+    volumes:
+      - ./:/var/www
+      - ./docker-compose/php-fpm/extend-php.ini:/usr/local/etc/php/conf.d/extend-php.ini
+    depends_on:
+      - postgres
+    networks:
+      - nginx-network
+      - db-network
+
+  postgres:
+    build:
+        context: ./docker-compose/db
+        dockerfile: Dockerfile
+    restart: unless-stopped
+    container_name: ${APP_NAME}-postgres
+    volumes:
+      - "./docker-compose/postgresql:/var/lib/postgresql/data"
+      - "./docker-compose/db/:/docker-entrypoint-initdb.d/"
+    environment:
+      POSTGRES_USER: ${DB_USERNAME}
+      POSTGRES_PASSWORD: ${DB_PASSWORD}
+      POSTGRES_DB: ${DB_DATABASE}
+    ports:
+      - "5432:5432"
+    networks:
+      - db-network
+
+  nginx:
+    image: nginx:alpine
+    container_name: ${APP_NAME}-nginx
+    restart: unless-stopped
+    depends_on:
+        -   app
+    ports:
+      - "8000:80"
+    volumes:
+      - ./:/var/www
+      - ./docker-compose/nginx/conf.d/:/etc/nginx/conf.d/
+      - ./docker-compose/logs/nginx/:/var/log/nginx
+    networks:
+      - nginx-network
+
+networks:
+  db-network:
+  nginx-network:
